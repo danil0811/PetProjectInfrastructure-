@@ -1,0 +1,35 @@
+name: Infrastructure CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Клонируем репозиторий
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Проверяем синтаксис Docker Compose
+      - name: Validate docker-compose
+        run: docker compose config -q
+
+      # 3. Проверяем YAML файлы на опечатки (линтинг)
+      - name: Lint YAML
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .
+          config_file: .yamllint.yml
+        continue-on-error: true # пока не будем ронять пайплайн из-за строгих правил
+
+      # 4. Проверяем конфиг Nginx на синтаксис
+      - name: Test Nginx config
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro \
+            nginx:1.27-alpine nginx -t
